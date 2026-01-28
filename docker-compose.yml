@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  scam-detector:
+    build: .
+    container_name: scam-detection-service
+    restart: unless-stopped
+    environment:
+      # Database - connect to existing Dex database
+      - DATABASE_URL=${DATABASE_URL}
+
+      # Portal API
+      - PORTAL_API_URL=${PORTAL_API_URL}
+      - PORTAL_API_KEY=${PORTAL_API_KEY}
+
+      # Anthropic API
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=claude-haiku-20250306
+
+      # Job Settings
+      - PERIODIC_SCAN_INTERVAL_MINUTES=15
+      - NIGHTLY_SUMMARY_HOUR=2
+      - NIGHTLY_SUMMARY_MINUTE=0
+
+      # Detection Settings
+      - RISK_THRESHOLD_CRITICAL=0.9
+      - RISK_THRESHOLD_HIGH=0.7
+      - RISK_THRESHOLD_MEDIUM=0.4
+      - MAX_AI_REVIEWS_PER_RUN=100
+      - MAX_AI_REVIEWS_DAILY=20
+
+    ports:
+      - "8000:8000"
+
+    networks:
+      - tsg-network
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tsg-network:
+    external: true
